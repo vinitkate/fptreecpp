@@ -162,25 +162,51 @@ void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap){
     file.close();
 }
 
+void compress(vector<int> v, map<int, int>& initialFrequencyMap,map<vector<int>, int>& convertTo){
+    sort(v.begin(), v.end(), [&initialFrequencyMap](int a, int b){
+        return initialFrequencyMap[a] > initialFrequencyMap[b];
+    });
+    unordered_set<int> unset(v.begin(), v.end());
+    for(auto& itemPair: convertTo){
+        vector<int>& temp = itemPair.first;
+        bool found = true;
+        for(int i: temp){
+            if(unset.find(i) == unset.end()){
+                found = false;
+                break;
+            }
+            unset.erase(unset.find(i));
+        }
+        vector<int> ans;
+        if(found){
+            for(int i: unset){
+                ans.push_back(i);
+            }
+            ans.push_back(convertTo[temp]);
+            return ans;
+        }
+    }
+}
+
 int main(){
-    // vector<vector<int>> v = {
-    //     {1, 2, 3},
-    //     {2, 3, 4},
-    //     {1, 3, 4},
-    //     {2, 3, 4, 5},
-    //     {2, 3},
-    //     {1, 2, 4},
-    //     {1, 3}
-    // };
+    vector<vector<int>> v = {
+        {1, 2, 3},
+        {2, 3, 4},
+        {1, 3, 4},
+        {2, 3, 4, 5},
+        {2, 3},
+        {1, 2, 4},
+        {1, 3}
+    };
     FPTree fp;
-    // for(auto& vec:v){
-    //     fp.insert(vec);
-    // }
+    for(auto& vec:v){
+        fp.insert(vec);
+    }
     // fp.dfs();
-    map<int, int> initialFrequencyMap;
-    readDataFirstPass(initialFrequencyMap, "D_small.dat");
-    readDataSecondPass(fp, initialFrequencyMap);
-    map<vector<int>, int> patterns;
+    // map<int, int> initialFrequencyMap;
+    // readDataFirstPass(initialFrequencyMap, "D_small.dat");
+    // readDataSecondPass(fp, initialFrequencyMap);
+    // map<vector<int>, int> patterns;
     vector<vector<int>> ptrns;
     int freqSum = 0;
     for(auto& pa:initialFrequencyMap){

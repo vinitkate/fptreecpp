@@ -117,31 +117,84 @@ void minefrequentPattern(FPTree& tree, int minSupport, vector<vector<int>>& patt
     }
 }
 
-int main(){
-    vector<vector<int>> v = {
-        {1, 2, 3},
-        {2, 3, 4},
-        {1, 3, 4},
-        {2, 3, 4, 5},
-        {2, 3},
-        {1, 2, 4},
-        {1, 3}
-    };
-    FPTree fp;
-    for(auto& vec:v){
-        fp.insert(vec);
+void readDataFirstPass(map<int, int>& initialFreqMap, string fileName){
+    ifstream file(fileName);
+
+    if(!file.is_open()){
+        cerr<<"Error in opening"<<endl;
+        return;
     }
+    string line;
+    while(getline(file, line)){
+        istringstream iss(line);
+        int data;
+        while(iss >> data){
+            if(initialFreqMap.find(data) == initialFreqMap.end()){
+                initialFreqMap[data] = 1;
+            }else{
+                initialFreqMap[data] += 1;
+            }
+        }
+    }
+}
+
+void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap){
+    ifstream file("D_small.dat");
+
+    if(!file.is_open()){
+        cerr << "Failed to open" <<endl;
+        return;
+    }
+    string line;
+
+    while(getline(file, line)){
+        istringstream iss(line);
+        int data;
+        vector<int> dv;
+        while(iss >> data){
+            dv.push_back(data);
+        }
+        sort(dv.begin(), dv.end(), [&initialFrequencyMap](int a, int b){
+            return initialFrequencyMap[a] > initialFrequencyMap[b];
+        });
+        tree.insert(dv);
+    }
+    file.close();
+}
+
+int main(){
+    // vector<vector<int>> v = {
+    //     {1, 2, 3},
+    //     {2, 3, 4},
+    //     {1, 3, 4},
+    //     {2, 3, 4, 5},
+    //     {2, 3},
+    //     {1, 2, 4},
+    //     {1, 3}
+    // };
+    FPTree fp;
+    // for(auto& vec:v){
+    //     fp.insert(vec);
+    // }
     // fp.dfs();
+    map<int, int> initialFrequencyMap;
+    readDataFirstPass(initialFrequencyMap, "D_small.dat");
+    readDataSecondPass(fp, initialFrequencyMap);
     map<vector<int>, int> patterns;
     vector<vector<int>> ptrns;
-    fp.printTable();
-    minefrequentPattern(fp, 2, ptrns);
-
-    for(auto& pattern:ptrns){
-        for(int v:pattern){
-            cout<<v<<" ";
-        }
-        cout<<endl;
+    int freqSum = 0;
+    for(auto& pa:initialFrequencyMap){
+        cout<<pa.first<<" "<<pa.second<<endl;
+        freqSum += pa.second;
     }
+    cout<<freqSum;
+    minefrequentPattern(fp, 2000, ptrns);
+
+    // for(auto& pattern:ptrns){
+    //     for(int v:pattern){
+    //         cout<<v<<" ";
+    //     }
+    //     cout<<endl;
+    // }
     return 0;
 }

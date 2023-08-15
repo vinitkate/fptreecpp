@@ -89,7 +89,9 @@ void minefrequentPattern(FPTree& tree, int minSupport, vector<vector<int>>& patt
         if(support >= minSupport){
             vector<int> newPatterns = pattern;
             newPatterns.push_back(item);
+            if(newPatterns.size() > 5){
             patterns.push_back(newPatterns);
+            }
             cout<<"New pattern: ";
             for(auto v:newPatterns){
                 cout<<v<<" ";
@@ -162,14 +164,20 @@ void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap){
     file.close();
 }
 
-vector<int> compress(vector<int>& v, map<int, int>& initialFrequencyMap,map<vector<int>, int>& convertTo){
+
+
+
+vector<int> compress(vector<int>& v, map<int, int>& initialFrequencyMap, vector<vector<int>>& convertTo){
     sort(v.begin(), v.end(), [&initialFrequencyMap](int a, int b){
         return initialFrequencyMap[a] > initialFrequencyMap[b];
     });
-    vector<int> ans;
-    for(auto& itemPair: convertTo){
-        unordered_set<int> unset(v.begin(), v.end());
-        vector<int> temp = itemPair.first;
+    int range = 100;
+    vector<int> ans = v;
+    int sz = convertTo.size();
+    for(int i = 0; i < min(sz, 100); i++){
+        vector<int> t;
+        unordered_set<int> unset(ans.begin(), ans.end());
+        vector<int> temp = convertTo[i];
         bool found = true;
         for(int i: temp){
             if(unset.find(i) == unset.end()){
@@ -180,13 +188,19 @@ vector<int> compress(vector<int>& v, map<int, int>& initialFrequencyMap,map<vect
         }
         if(found){
             for(int i: unset){
-                ans.push_back(i);
+                t.push_back(i);
             }
-            ans.push_back(convertTo[temp]);
-            return ans;
+            t.push_back(-1*i-2);
+            if(t.size() < ans.size()){
+                ans = t;
+            }
         }
     }
-    return v;
+    return ans;
+}
+
+bool sizeCompare(vector<int>& a, vector<int>& b){
+    return a.size() > b.size();
 }
 
 int main(){
@@ -205,41 +219,79 @@ int main(){
     }
     // fp.dfs();
     map<int, int> initialFrequencyMap;
-    for(vector vi: v){
-        for(int i: vi){
-            if(initialFrequencyMap.find(i) == initialFrequencyMap.end()){
-                initialFrequencyMap[i] = 0;
-            }
-            initialFrequencyMap[i] += 1;
-        }
-    }
-    // readDataFirstPass(initialFrequencyMap, "D_small.dat");
-    // readDataSecondPass(fp, initialFrequencyMap);
-    // map<vector<int>, int> patterns;
+    // for(vector vi: v){
+    //     for(int i: vi){
+    //         if(initialFrequencyMap.find(i) == initialFrequencyMap.end()){
+    //             initialFrequencyMap[i] = 0;
+    //         }
+    //         initialFrequencyMap[i] += 1;
+    //     }
+    // }
+    readDataFirstPass(initialFrequencyMap, "D_small.dat");
+    readDataSecondPass(fp, initialFrequencyMap);
+    // map<vector<int>, int, > patterns(compareSize);
     vector<vector<int>> ptrns;
     int freqSum = 0;
-    // for(auto& pa:initialFrequencyMap){
-    //     cout<<pa.first<<" "<<pa.second<<endl;
-    //     freqSum += pa.second;
-    // }
-    // cout<<freqSum;
-    minefrequentPattern(fp, 2, ptrns);
+    for(auto& pa:initialFrequencyMap){
+        cout<<pa.first<<" "<<pa.second<<endl;
+        freqSum += pa.second;
+    }
+    cout<<freqSum;
+    minefrequentPattern(fp, 2000, ptrns);
     map<vector<int>, int> convtTo;
+    sort(ptrns.begin(), ptrns.end(), sizeCompare);
     int i = -2;
-    for(vector<int>& v: ptrns){
-        if(v.size() > 2){
-        convtTo[v] = i;
-        i--;
+    vector<vector<int>> convertTo;
+    for(vector<int>& temp: ptrns){
+        if(temp.size() >= 7){
+            convertTo.push_back(temp);
         }
+    }
+    cout<<convtTo.size();
+    // for(auto& vi:v){
+    //     vector<int> n = compress(vi, initialFrequencyMap, convtTo);
+    //     for(int j:n){
+    //         cout<<j<<" ";
+    //     }
+    //     cout<<endl;
+    // }
+
+    map<int, vector<int>> expand;
+    for(int i = 0; i < convertTo.size(); i++){
+        expand[-2-1*i] = convertTo[i];
     }
 
-    for(auto& vi:v){
-        vector<int> n = compress(vi, initialFrequencyMap, convtTo);
-        for(int j:n){
-            cout<<j<<" ";
-        }
-        cout<<endl;
+    int y = 0;
+    for(auto& v:convtTo){
+        cout<<v.first.size()<<endl;
     }
+
+    ifstream file("D_small.dat");
+    ofstream outputFile("output.dat");
+    if(!file.is_open()){
+        cerr<<"Can't open file"<<endl;
+        return 1;
+    }
+    string line;
+    while(getline(file, line)){
+        istringstream iss(line);
+        int data;
+        vector<int> dv;
+        while(iss >> data){
+            dv.push_back(data);
+        }
+        if(outputFile.is_open()){
+            vector<int> out = compress(dv, initialFrequencyMap, convertTo);
+            for(int i: out){
+                // cout<< i << " ";
+                outputFile << i << " ";
+            }
+            // cout<<endl;
+            outputFile << endl;
+        }
+    }
+    outputFile.close();
+    file.close();
 
 
     // for(auto& pattern:ptrns){
@@ -248,5 +300,7 @@ int main(){
     //     }
     //     cout<<endl;
     // }
+
+    
     return 0;
 }

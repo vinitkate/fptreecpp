@@ -188,7 +188,7 @@ int binarySearch(vector<int>& vec, int ele, int start){
 
 
 
-vector<int> compress(vector<int>& v, vector<vector<int>>& convertTo, int maxVal){
+vector<int> compress(vector<int>& v, vector<vector<int>>& convertTo){
     int range = 100;
     vector<int>& ans = v;
     int vecSize = v.size();
@@ -232,7 +232,7 @@ vector<int> compress(vector<int>& v, vector<vector<int>>& convertTo, int maxVal)
             while(r < ans.size()){
                 t.push_back(ans[r++]);
             }
-            t.push_back(maxVal+i);
+            t.push_back(-1*i-2);
             // cout<<"Compressed: "<<ans.size()<<" "<<t.size()<<endl;
             ans = t;
             sort(ans.begin(), ans.end());
@@ -245,7 +245,7 @@ bool sizeCompare(vector<int>& a, vector<int>& b){
     return a.size() > b.size();
 }
 
-int writeCompressedOutput(string inputFileName, string outputFileName, vector<vector<int>>& convertTo, int maxVal){
+int writeCompressedOutput(string inputFileName, string outputFileName, vector<vector<int>>& convertTo){
     ifstream file(inputFileName);
     ofstream outputFile(outputFileName);
     int count = 0;
@@ -264,16 +264,19 @@ int writeCompressedOutput(string inputFileName, string outputFileName, vector<ve
         }
         dataVectors.push_back(dv);
     }
+    outputFile<<convertTo.size()<<endl;
     for(int i = 0; i < convertTo.size(); i++){
-        outputFile << maxVal + i << " ";
+        // outputFile << maxVal + i << " ";
+        outputFile << -1*i - 2<< " ";
         for(int j = 0;j < convertTo[i].size(); j++){
             outputFile << convertTo[i][j] << " ";
             count++;
         }
+        outputFile << endl;
     }
     for(vector<int> dv: dataVectors){
         if(outputFile.is_open()){
-            vector<int> out = compress(dv, convertTo, maxVal);
+            vector<int> out = compress(dv, convertTo);
             for(int i: out){
                 count++;
                 outputFile << i << " ";
@@ -286,81 +289,104 @@ int writeCompressedOutput(string inputFileName, string outputFileName, vector<ve
     return count;
 }
 
-void writeExpandedOutput(map<long, vector<int>>& expand, string inputFileName, string outputFileName){
-    ofstream outputFile1(outputFileName);
-    ifstream file1(inputFileName);
-    if(!file1.is_open()){
+void writeExpandedOutput(string inputFileName, string outputFileName){
+    ofstream outputFile(outputFileName);
+    ifstream file(inputFileName);
+    map<int, vector<int>> expand;
+    if(!file.is_open()){
         cerr<<"Unable to open "<<endl;
         return;
     }
-    string line1;
-    while(getline(file1, line1)){
-        istringstream iss(line1);
+    int cnt = 0;
+    string line;
+    int mappingSize = expand.size();
+    while(getline(file, line)){
+        istringstream iss(line);
         int data;
         vector<int> dv;
-        while(iss >> data){
-            dv.push_back(data);
+        if(cnt == 0){
+            iss >> data;
+            mappingSize = data;
+            cnt++;
         }
-        if(outputFile1.is_open()){
+        else if(cnt <= mappingSize){
+            while(iss>>data){
+                dv.push_back(data);
+            }
+            for(int i = 1; i < dv.size(); i++){
+                expand[dv[0]].push_back(dv[i]);
+            }
+            cnt++;
+        }
+        
+        else if(cnt > mappingSize && outputFile.is_open()){
+            while(iss >> data){
+                dv.push_back(data);
+            }
             for(int i: dv){
                 if(expand.find(i) == expand.end()){
-                    outputFile1 << i << " ";
+                    outputFile << i << " ";
                 }else{
                     for(int j: expand[i]){
-                        outputFile1 << j << " ";
+                        outputFile << j << " ";
                     }
                 }
             }
-            outputFile1 << endl;
+            outputFile << endl;
         }
     }
-    file1.close();
-    outputFile1.close();
+    file.close();
+    outputFile.close();
 }
 
-int main(){
+int main(int argv, char* argc[]){
     FPTree fp;
+    if(*argc[1] == 'C'){
+        string fileName = argc[2];
+        // auto start = chrono::high_resolution_clock::now();
+        map<int, int> initialFrequencyMap;
+    
+        int rows = readDataFirstPass(initialFrequencyMap, fileName);
+        readDataSecondPass(fp, initialFrequencyMap, fileName);
+    
+        int totalFreq = 0, minFreq = INT_MAX, maxFreq = 0;
+        for(auto& p:initialFrequencyMap){
+            totalFreq += p.second;
+            minFreq = min(minFreq, p.second);
+            maxFreq = max(maxFreq, p.second);
+        }
+    
+        vector<vector<int>> convertTo;
+    
+        int minSize = 2;
+        int minSupport = rows/100;
+        if(rows < 5000){
+            // minSize = 3;
+            minSupport = 1500;
+        } 
+        cout<<"Initial Count: "<<totalFreq<<endl;
+        minefrequentPattern(fp, minSupport, minSize, convertTo);
+        sort(convertTo.begin(), convertTo.end(), sizeCompare);
 
-    string fileName = "D_medium.dat";
-    auto start = chrono::high_resolution_clock::now();
-    map<int, int> initialFrequencyMap;
-
-    int rows = readDataFirstPass(initialFrequencyMap, fileName);
-    readDataSecondPass(fp, initialFrequencyMap, fileName);
-
-    int totalFreq = 0, minFreq = INT_MAX, maxFreq = 0;
-    int maxval = 0;
-    for(auto& p:initialFrequencyMap){
-        totalFreq += p.second;
-        minFreq = min(minFreq, p.second);
-        maxFreq = max(maxFreq, p.second);
-        maxval = max(maxval, p.first);
+        map<int, vector<int>> expand;
+        for(int i = 0; i < convertTo.size(); i++){
+            expand[-1*i-2] = convertTo[i];
+        }
+        cout<<convertTo.size()<<endl;
+        vector<vector<int>> convertto(convertTo.begin(), min(convertTo.end(), convertTo.begin() + 1500));
+        int finalMappingSize = convertto.size();
+        int finalCount = writeCompressedOutput(fileName, "compressed.dat", convertto);
+        cout<<"Final Count: "<<finalCount<<endl;
+        
+    }else{
+        string fileName = argc[2];
+        writeExpandedOutput(fileName, "expanded.dat");
     }
-    maxval++;
-    long maxVal = maxval;
-
-    vector<vector<int>> convertTo;
-
-    int minSize = 2;
-    int minSupport = rows/100;
-    if(rows < 5000){
-        minSupport = 1700;
-    } 
-    cout<<"Initial Count: "<<totalFreq<<endl;
-    minefrequentPattern(fp, minSupport, minSize, convertTo);
-    sort(convertTo.begin(), convertTo.end(), sizeCompare);
-
-    map<long, vector<int>> expand;
-    for(long i = 0; i < convertTo.size(); i++){
-        expand[maxVal+i] = convertTo[i];
-    }
-    cout<<convertTo.size()<<endl;
-    vector<vector<int>> convertto(convertTo.begin(), min(convertTo.end(), convertTo.begin() + 1500));
-
-    int finalCount = writeCompressedOutput(fileName, "output.dat", convertto, maxVal);
-    auto end = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
-    cout<<"Run time duration: "<<duration.count()/1000.0<<" "<<endl;
-    cout<<"Final Count: "<<finalCount<<endl;
+    
+    
+    // auto end = chrono::high_resolution_clock::now();
+    // auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
+    // cout<<"Run time duration: "<<duration.count()/1000.0<<" sec"<<endl;
+    // 
     return 0;
 }

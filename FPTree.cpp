@@ -77,7 +77,7 @@ class FPTree{
     }
 };
 
-void minefrequentPattern(FPTree& tree, int minSupport, vector<vector<int>>& patterns, vector<int> pattern={}){
+void minefrequentPattern(FPTree& tree, int minSupport, int minSize, vector<vector<int>>& patterns, vector<int> pattern={}){
     for(auto& valuePairs:tree.headerTable){
         int item = valuePairs.first;
         vector<Node*>& nodes = valuePairs.second;
@@ -89,15 +89,15 @@ void minefrequentPattern(FPTree& tree, int minSupport, vector<vector<int>>& patt
         if(support >= minSupport){
             vector<int> newPatterns = pattern;
             newPatterns.push_back(item);
-            if(newPatterns.size() > 5){
-            patterns.push_back(newPatterns);
+            if(newPatterns.size() >= minSize){
+                patterns.push_back(newPatterns);
+                // cout<<"New pattern: ";
+                // for(auto v:newPatterns){
+                //     cout<<v<<" ";
+                // }
+                // cout<<" Support is: "<<support<<endl;
             }
-            cout<<"New pattern: ";
-            for(auto v:newPatterns){
-                cout<<v<<" ";
-            }
-            cout<<" Support is: "<<support<<endl;
-
+            
             FPTree nextTree;
 
             for(auto& node:nodes){
@@ -114,22 +114,23 @@ void minefrequentPattern(FPTree& tree, int minSupport, vector<vector<int>>& patt
                     nextTree.insert(path, node->freq);
                 }
             }
-            minefrequentPattern(nextTree, minSupport, patterns, newPatterns);
+            minefrequentPattern(nextTree, minSupport, minSize, patterns, newPatterns);
         }
     }
 }
 
-void readDataFirstPass(map<int, int>& initialFreqMap, string fileName){
+int readDataFirstPass(map<int, int>& initialFreqMap, string fileName){
     ifstream file(fileName);
-
+    int rows = 0;
     if(!file.is_open()){
         cerr<<"Error in opening"<<endl;
-        return;
+        return -1;
     }
     string line;
     while(getline(file, line)){
         istringstream iss(line);
         int data;
+        rows++;
         while(iss >> data){
             if(initialFreqMap.find(data) == initialFreqMap.end()){
                 initialFreqMap[data] = 1;
@@ -138,17 +139,18 @@ void readDataFirstPass(map<int, int>& initialFreqMap, string fileName){
             }
         }
     }
+    return rows;
 }
 
-void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap){
-    ifstream file("D_small.dat");
+void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap, string fileName){
+    ifstream file(fileName);
 
     if(!file.is_open()){
         cerr << "Failed to open" <<endl;
         return;
     }
     string line;
-
+    vector<vector<int>> dataVectors;
     while(getline(file, line)){
         istringstream iss(line);
         int data;
@@ -156,44 +158,84 @@ void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap){
         while(iss >> data){
             dv.push_back(data);
         }
+        dataVectors.push_back(dv);
+    }
+    file.close();
+
+    for(vector<int> dv: dataVectors){
         sort(dv.begin(), dv.end(), [&initialFrequencyMap](int a, int b){
             return initialFrequencyMap[a] > initialFrequencyMap[b];
         });
         tree.insert(dv);
     }
-    file.close();
+}
+
+int binarySearch(vector<int>& vec, int ele, int start){
+    int l = start, r = vec.size()-1;
+    while(l <= r){
+        int m = l + (r - l)/2;
+        if(vec[m] == ele){
+            return m;
+        }else if(vec[m] > ele){
+            r = m-1;
+        }else{
+            l = m+1;
+        }
+    }
+    return -1;
 }
 
 
 
 
-vector<int> compress(vector<int>& v, map<int, int>& initialFrequencyMap, vector<vector<int>>& convertTo){
-    sort(v.begin(), v.end(), [&initialFrequencyMap](int a, int b){
-        return initialFrequencyMap[a] > initialFrequencyMap[b];
-    });
+vector<int> compress(vector<int>& v, vector<vector<int>>& convertTo, int maxVal){
     int range = 100;
-    vector<int> ans = v;
+    vector<int>& ans = v;
+    int vecSize = v.size();
     int sz = convertTo.size();
-    for(int i = 0; i < min(sz, 100); i++){
-        vector<int> t;
-        unordered_set<int> unset(ans.begin(), ans.end());
+    for(int i = 0; i < sz; i++){
         vector<int> temp = convertTo[i];
-        bool found = true;
-        for(int i: temp){
-            if(unset.find(i) == unset.end()){
-                found = false;
-                break;
-            }
-            unset.erase(unset.find(i));
+        if(temp.size() > ans.size()){
+            continue;
         }
-        if(found){
-            for(int i: unset){
-                t.push_back(i);
+        vector<int> t;
+        sort(temp.begin(), temp.end());
+        int l = 0, r = 0, f = 1;
+        while(l < temp.size() && r < ans.size()){
+            // if(temp[l] == ans[r]){
+            //     l++;
+            //     r++;
+            //     f++;
+            // }else if(ans[r] < temp[l]){
+            //     t.push_back(ans[r]);
+            //     r++;
+            // }else{
+            //     l++;
+            // }
+
+            int i = binarySearch(ans, temp[l], r);
+            if(i == -1){
+                f = 0;
+                break;
+            }else{
+                int m = r;
+                while(m < i){
+                    t.push_back(ans[m]);
+                    m++;
+                }
+                r = i+1;
             }
-            t.push_back(-1*i-2);
-            if(t.size() < ans.size()){
-                ans = t;
+            l++;
+        }
+
+        if(f && l == temp.size()){
+            while(r < ans.size()){
+                t.push_back(ans[r++]);
             }
+            t.push_back(maxVal+i);
+            // cout<<"Compressed: "<<ans.size()<<" "<<t.size()<<endl;
+            ans = t;
+            sort(ans.begin(), ans.end());
         }
     }
     return ans;
@@ -203,76 +245,16 @@ bool sizeCompare(vector<int>& a, vector<int>& b){
     return a.size() > b.size();
 }
 
-int main(){
-    vector<vector<int>> v = {
-        {1, 2, 3},
-        {2, 3, 4},
-        {1, 3, 4},
-        {2, 3, 4, 5},
-        {2, 3},
-        {1, 2, 4},
-        {1, 3}
-    };
-    FPTree fp;
-    for(auto& vec:v){
-        fp.insert(vec);
-    }
-    // fp.dfs();
-    map<int, int> initialFrequencyMap;
-    // for(vector vi: v){
-    //     for(int i: vi){
-    //         if(initialFrequencyMap.find(i) == initialFrequencyMap.end()){
-    //             initialFrequencyMap[i] = 0;
-    //         }
-    //         initialFrequencyMap[i] += 1;
-    //     }
-    // }
-    readDataFirstPass(initialFrequencyMap, "D_small.dat");
-    readDataSecondPass(fp, initialFrequencyMap);
-    // map<vector<int>, int, > patterns(compareSize);
-    vector<vector<int>> ptrns;
-    int freqSum = 0;
-    for(auto& pa:initialFrequencyMap){
-        cout<<pa.first<<" "<<pa.second<<endl;
-        freqSum += pa.second;
-    }
-    cout<<freqSum;
-    minefrequentPattern(fp, 2000, ptrns);
-    map<vector<int>, int> convtTo;
-    sort(ptrns.begin(), ptrns.end(), sizeCompare);
-    int i = -2;
-    vector<vector<int>> convertTo;
-    for(vector<int>& temp: ptrns){
-        if(temp.size() >= 7){
-            convertTo.push_back(temp);
-        }
-    }
-    cout<<convtTo.size();
-    // for(auto& vi:v){
-    //     vector<int> n = compress(vi, initialFrequencyMap, convtTo);
-    //     for(int j:n){
-    //         cout<<j<<" ";
-    //     }
-    //     cout<<endl;
-    // }
-
-    map<int, vector<int>> expand;
-    for(int i = 0; i < convertTo.size(); i++){
-        expand[-2-1*i] = convertTo[i];
-    }
-
-    int y = 0;
-    for(auto& v:convtTo){
-        cout<<v.first.size()<<endl;
-    }
-
-    ifstream file("D_small.dat");
-    ofstream outputFile("output.dat");
+int writeCompressedOutput(string inputFileName, string outputFileName, vector<vector<int>>& convertTo, int maxVal){
+    ifstream file(inputFileName);
+    ofstream outputFile(outputFileName);
+    int count = 0;
     if(!file.is_open()){
         cerr<<"Can't open file"<<endl;
-        return 1;
+        return 0;
     }
     string line;
+    vector<vector<int>> dataVectors;
     while(getline(file, line)){
         istringstream iss(line);
         int data;
@@ -280,27 +262,105 @@ int main(){
         while(iss >> data){
             dv.push_back(data);
         }
+        dataVectors.push_back(dv);
+    }
+    for(int i = 0; i < convertTo.size(); i++){
+        outputFile << maxVal + i << " ";
+        for(int j = 0;j < convertTo[i].size(); j++){
+            outputFile << convertTo[i][j] << " ";
+            count++;
+        }
+    }
+    for(vector<int> dv: dataVectors){
         if(outputFile.is_open()){
-            vector<int> out = compress(dv, initialFrequencyMap, convertTo);
+            vector<int> out = compress(dv, convertTo, maxVal);
             for(int i: out){
-                // cout<< i << " ";
+                count++;
                 outputFile << i << " ";
             }
-            // cout<<endl;
             outputFile << endl;
         }
     }
     outputFile.close();
     file.close();
+    return count;
+}
 
+void writeExpandedOutput(map<long, vector<int>>& expand, string inputFileName, string outputFileName){
+    ofstream outputFile1(outputFileName);
+    ifstream file1(inputFileName);
+    if(!file1.is_open()){
+        cerr<<"Unable to open "<<endl;
+        return;
+    }
+    string line1;
+    while(getline(file1, line1)){
+        istringstream iss(line1);
+        int data;
+        vector<int> dv;
+        while(iss >> data){
+            dv.push_back(data);
+        }
+        if(outputFile1.is_open()){
+            for(int i: dv){
+                if(expand.find(i) == expand.end()){
+                    outputFile1 << i << " ";
+                }else{
+                    for(int j: expand[i]){
+                        outputFile1 << j << " ";
+                    }
+                }
+            }
+            outputFile1 << endl;
+        }
+    }
+    file1.close();
+    outputFile1.close();
+}
 
-    // for(auto& pattern:ptrns){
-    //     for(int v:pattern){
-    //         cout<<v<<" ";
-    //     }
-    //     cout<<endl;
-    // }
+int main(){
+    FPTree fp;
 
-    
+    string fileName = "D_medium.dat";
+    auto start = chrono::high_resolution_clock::now();
+    map<int, int> initialFrequencyMap;
+
+    int rows = readDataFirstPass(initialFrequencyMap, fileName);
+    readDataSecondPass(fp, initialFrequencyMap, fileName);
+
+    int totalFreq = 0, minFreq = INT_MAX, maxFreq = 0;
+    int maxval = 0;
+    for(auto& p:initialFrequencyMap){
+        totalFreq += p.second;
+        minFreq = min(minFreq, p.second);
+        maxFreq = max(maxFreq, p.second);
+        maxval = max(maxval, p.first);
+    }
+    maxval++;
+    long maxVal = maxval;
+
+    vector<vector<int>> convertTo;
+
+    int minSize = 2;
+    int minSupport = rows/100;
+    if(rows < 5000){
+        minSupport = 1700;
+    } 
+    cout<<"Initial Count: "<<totalFreq<<endl;
+    minefrequentPattern(fp, minSupport, minSize, convertTo);
+    sort(convertTo.begin(), convertTo.end(), sizeCompare);
+
+    map<long, vector<int>> expand;
+    for(long i = 0; i < convertTo.size(); i++){
+        expand[maxVal+i] = convertTo[i];
+    }
+    cout<<convertTo.size()<<endl;
+    vector<vector<int>> convertto(convertTo.begin(), min(convertTo.end(), convertTo.begin() + 1500));
+
+    int finalCount = writeCompressedOutput(fileName, "output.dat", convertto, maxVal);
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
+    cout<<"Run time duration: "<<duration.count()/1000.0<<" "<<endl;
+    cout<<"Final Count: "<<finalCount<<endl;
     return 0;
 }

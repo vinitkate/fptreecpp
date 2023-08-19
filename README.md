@@ -1,4 +1,4 @@
-# fptreecpp
+# Transactional Data Compression
 Transactional Data Compression, Dataset compression plays a crucial role in modern data management and analytics. As the
 volume of data generated and collected continues to skyrocket, the need for efficient storage
 and processing becomes more pressing. While reducing the size of the dataset, it is

@@ -1,4 +1,15 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <fstream>
+#include <unordered_set>
+#include <unordered_map>
+#include <istream>
+#include <climits>
+#include <sstream>
+#include <chrono>
+#include <string>
 
 using namespace std;
 
@@ -7,7 +18,8 @@ class Node{
     int val;
     int freq;
     Node* parent;
-    unordered_map<int, Node*> children;
+    // unordered_map<int, Node*> children;
+    vector<Node*> childrens;
 };
 
 class FPTree{
@@ -28,7 +40,8 @@ class FPTree{
                 node->val = t;
                 node->freq = count;
                 node->parent = curr;
-                curr->children[t] = node;
+                // curr->children[t] = node;
+                curr->childrens.push_back(node);
                 curr = node;
                 if(headerTable.find(t) == headerTable.end()){
                     headerTable[t] = {node};
@@ -43,38 +56,16 @@ class FPTree{
     }
 
     Node* findChildren(Node* n, int v){
-        if(n->children.find(v) != n->children.end()){
-            return n->children[v];
+        // if(n->children.find(v) != n->children.end()){
+        //     return n->children[v];
+        // }
+        for(Node* c:n->childrens){
+            if(c->val == v){
+                return c;
+            }
         }
         return nullptr;
     }   
-
-    void dfs(){
-        unordered_set<Node*> vis;
-        dfs(this->root, vis);
-        cout<<endl;
-    }
-
-    void dfs(Node* r, unordered_set<Node*>& visited){
-        if(visited.find(r) == visited.end()){
-            cout<<r->val<<"--"<<r->freq<<"  ";
-            visited.insert(r);
-            for(auto& child:r->children){
-                dfs(child.second, visited);
-            }
-        }
-
-    }
-
-    void printTable(){
-        for(auto& itemPair:headerTable){
-            cout<<itemPair.first<<" ";
-            for(auto& node:itemPair.second){
-                cout<<node->val<<" ";
-            }
-            cout<<endl;
-        }
-    }
 };
 
 void minefrequentPattern(FPTree& tree, int minSupport, int minSize, vector<vector<int>>& patterns, vector<int> pattern={}){
@@ -149,8 +140,8 @@ void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap, string
         cerr << "Failed to open" <<endl;
         return;
     }
+
     string line;
-    vector<vector<int>> dataVectors;
     while(getline(file, line)){
         istringstream iss(line);
         int data;
@@ -158,16 +149,12 @@ void readDataSecondPass(FPTree& tree, map<int, int>& initialFrequencyMap, string
         while(iss >> data){
             dv.push_back(data);
         }
-        dataVectors.push_back(dv);
-    }
-    file.close();
-
-    for(vector<int> dv: dataVectors){
         sort(dv.begin(), dv.end(), [&initialFrequencyMap](int a, int b){
             return initialFrequencyMap[a] > initialFrequencyMap[b];
         });
         tree.insert(dv);
     }
+    file.close();
 }
 
 int binarySearch(vector<int>& vec, int ele, int start){
@@ -202,17 +189,6 @@ vector<int> compress(vector<int>& v, vector<vector<int>>& convertTo){
         sort(temp.begin(), temp.end());
         int l = 0, r = 0, f = 1;
         while(l < temp.size() && r < ans.size()){
-            // if(temp[l] == ans[r]){
-            //     l++;
-            //     r++;
-            //     f++;
-            // }else if(ans[r] < temp[l]){
-            //     t.push_back(ans[r]);
-            //     r++;
-            // }else{
-            //     l++;
-            // }
-
             int i = binarySearch(ans, temp[l], r);
             if(i == -1){
                 f = 0;
@@ -245,10 +221,10 @@ bool sizeCompare(vector<int>& a, vector<int>& b){
     return a.size() > b.size();
 }
 
-int writeCompressedOutput(string inputFileName, string outputFileName, vector<vector<int>>& convertTo){
+long writeCompressedOutput(string inputFileName, string outputFileName, vector<vector<int>>& convertTo){
     ifstream file(inputFileName);
     ofstream outputFile(outputFileName);
-    int count = 0;
+    long count = 0;
     if(!file.is_open()){
         cerr<<"Can't open file"<<endl;
         return 0;
@@ -343,17 +319,17 @@ int main(int argv, char* argc[]){
     FPTree fp;
     if(*argc[1] == 'C'){
         string fileName = argc[2];
-        // auto start = chrono::high_resolution_clock::now();
+        auto start = chrono::high_resolution_clock::now();
         map<int, int> initialFrequencyMap;
     
         int rows = readDataFirstPass(initialFrequencyMap, fileName);
         readDataSecondPass(fp, initialFrequencyMap, fileName);
     
-        int totalFreq = 0, minFreq = INT_MAX, maxFreq = 0;
+        int maxFreq = 0;
+        long initialCount = 0;
         for(auto& p:initialFrequencyMap){
-            totalFreq += p.second;
-            minFreq = min(minFreq, p.second);
             maxFreq = max(maxFreq, p.second);
+            initialCount += p.second;
         }
     
         vector<vector<int>> convertTo;
@@ -364,7 +340,7 @@ int main(int argv, char* argc[]){
             // minSize = 3;
             minSupport = 1500;
         } 
-        cout<<"Initial Count: "<<totalFreq<<endl;
+        cout<<"Initial Count: "<<initialCount<<endl;
         minefrequentPattern(fp, minSupport, minSize, convertTo);
         sort(convertTo.begin(), convertTo.end(), sizeCompare);
 
@@ -377,6 +353,9 @@ int main(int argv, char* argc[]){
         int finalMappingSize = convertto.size();
         int finalCount = writeCompressedOutput(fileName, "compressed.dat", convertto);
         cout<<"Final Count: "<<finalCount<<endl;
+        auto end = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(end-start);
+        cout<<"Run compression duration: "<<duration.count()/1000.0<<" sec"<<endl;
         
     }else{
         string fileName = argc[2];
